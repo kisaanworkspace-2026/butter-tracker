@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#a66a00">
+<title>Butter Tracker</title>
+<style>
+:root{
+  --bg:#faf8f3; --card:#fff; --ink:#1f1d18; --muted:#7a756a; --line:#ebe6da;
+  --accent:#a66a00; --accent-ink:#fff; --soft:#fdf1d6;
+  --ok:#2e7d4f; --ok-soft:#e4f3ea; --bad:#c0392b; --bad-soft:#fbe7e4; --warn:#9a6700; --warn-soft:#fff2cc;
+  --shadow:0 1px 2px rgba(60,40,0,.06),0 4px 14px rgba(60,40,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#161512; --card:#201e19; --ink:#f1eee6; --muted:#a09a8b; --line:#34312a;
+  --accent:#e0a233; --accent-ink:#1b1400; --soft:#3a2f12;
+  --ok:#5fc08a; --ok-soft:#173424; --bad:#ef7a6c; --bad-soft:#3d1d19; --warn:#e6b84d; --warn-soft:#3a2f12; --shadow:none}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px}
+header .chip{white-space:nowrap;max-width:130px;overflow:hidden;text-overflow:ellipsis}
+header h1{font-size:17px;margin:0;flex:1;letter-spacing:-.01em;white-space:nowrap}
+.live{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.dot.off{background:var(--bad)} .dot.spin{background:var(--accent);animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer}
+main{max-width:760px;margin:0 auto;padding:16px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.stat .label{font-size:13px;color:var(--muted)}
+.stat .big{font-size:34px;font-weight:700;letter-spacing:-.02em;margin:2px 0}
+.stat .big small{font-size:15px;font-weight:500;color:var(--muted)}
+.stat .sub{font-size:12.5px;color:var(--muted)}
+.neg .big{color:var(--bad)}
+.alert{display:flex;gap:10px;padding:11px 13px;border-radius:12px;margin-bottom:8px;font-size:14.5px;align-items:flex-start}
+.alert.bad{background:var(--bad-soft);color:var(--bad)} .alert.warn{background:var(--warn-soft);color:var(--warn)} .alert.ok{background:var(--ok-soft);color:var(--ok)}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px;cursor:pointer}
+.row .t{font-weight:600} .row .s{font-size:13px;color:var(--muted);margin-top:2px}
+.row .r{text-align:right;white-space:nowrap}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--soft);color:var(--accent);margin:2px 4px 0 0}
+.tag.ok{background:var(--ok-soft);color:var(--ok)} .tag.bad{background:var(--bad-soft);color:var(--bad)} .tag.gray{background:var(--line);color:var(--muted)}
+.pos{color:var(--ok);font-weight:600} .negc{color:var(--bad);font-weight:600}
+.btn{border:0;border-radius:12px;padding:13px 16px;font-size:16px;font-weight:600;cursor:pointer;background:var(--accent);color:var(--accent-ink);width:100%}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)} .btn.danger{background:transparent;color:var(--bad);border:1px solid var(--bad-soft)}
+.btn.ok{background:var(--ok);color:#fff} .btn:disabled{opacity:.5}
+.btn.sm{width:auto;padding:8px 14px;font-size:14px}
+.bar{display:flex;gap:8px;margin-bottom:10px}
+nav{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:20}
+nav button{flex:1;background:none;border:0;color:var(--muted);padding:6px 0;font-size:12px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .ic{font-size:21px;line-height:1} nav button.on{color:var(--accent);font-weight:700}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:40;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:560px;max-height:92vh;overflow:auto;border-radius:20px 20px 0 0;padding:16px 16px calc(20px + env(safe-area-inset-bottom))}
+@media(min-width:700px){.overlay{align-items:center}.sheet{border-radius:20px}}
+.sheet h3{margin:0 0 12px;font-size:19px;display:flex;justify-content:space-between;align-items:center}
+.x{background:none;border:0;font-size:26px;color:var(--muted);cursor:pointer;line-height:1}
+label.f{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;font-weight:500}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:46px}
+textarea{min-height:70px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card)}
+.seg label{flex:1;text-align:center;padding:11px 4px;font-size:14.5px;cursor:pointer;color:var(--muted);font-weight:600}
+.seg input{display:none} .seg input:checked+span{display:block;margin:-11px -4px;padding:11px 4px;background:var(--accent);color:var(--accent-ink)}
+.checks{display:flex;gap:8px;flex-wrap:wrap}
+.checks label{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:500}
+.checks input{width:18px;height:18px;min-height:0;accent-color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper button{width:48px;height:48px;border-radius:12px;border:1px solid var(--line);background:var(--card);font-size:24px;color:var(--ink);cursor:pointer}
+.stepper input{text-align:center;font-size:20px;font-weight:700}
+.hint{font-size:13px;color:var(--muted);margin-top:6px}
+.hint.bad{color:var(--bad)} .hint.ok{color:var(--ok)}
+.sp{height:10px} .hide{display:none!important}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:#222;color:#fff;padding:11px 18px;border-radius:12px;z-index:60;font-size:14.5px;max-width:90vw;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .2s}
+#toast.show{opacity:1} #toast.err{background:var(--bad)}
+.empty{text-align:center;color:var(--muted);padding:26px 0}
+.skel{height:84px;border-radius:14px;background:linear-gradient(90deg,var(--line),var(--card),var(--line));background-size:200% 100%;animation:sk 1.2s infinite;margin-bottom:10px}
+@keyframes sk{to{background-position:-200% 0}}
+.day{display:flex;gap:12px}
+.day .d{min-width:52px;text-align:center}
+.day .d b{display:block;font-size:22px;line-height:1.1}
+.day .d span{font-size:12px;color:var(--muted);text-transform:uppercase}
+.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <h1>🧈 Butter Tracker</h1>
+  <div class="live" id="live"><span class="dot spin"></span><span id="liveTxt">Loading…</span></div>
+  <button class="chip" id="who" aria-label="Change name">👤</button>
+</header>
+<main id="view"><div class="skel"></div><div class="skel"></div><div class="skel"></div></main>
+<nav id="tabs">
+  <button data-tab="home"><span class="ic">🏠</span>Home</button>
+  <button data-tab="receive"><span class="ic">📥</span>Receive</button>
+  <button data-tab="stock"><span class="ic">📦</span>Stock</button>
+  <button data-tab="plan"><span class="ic">🗓️</span>Plan</button>
+</nav>
+<div id="modal" class="overlay hide"><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+var S = null, tab = 'home', busy = false, modalOpen = false, showPast = false, me = '';
+var $ = function (s) { return document.querySelector(s); };
+function lsGet(k){ try { return localStorage.getItem(k) || ''; } catch(e){ return ''; } }
+function lsSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function kg(n){ n = Number(n) || 0; return n.toLocaleString('en-AU', {maximumFractionDigits: 1}); }
+function pd(s){ var p = s.split('-'); return new Date(+p[0], +p[1]-1, +p[2]); }
+function dLong(s){ if(!s) return '—'; return pd(s).toLocaleDateString('en-AU', {weekday:'short', day:'numeric', month:'short'}); }
+function dShort(s){ if(!s) return '—'; return pd(s).toLocaleDateString('en-AU', {day:'numeric', month:'short', year:'2-digit'}); }
+function addDays(s, n){ var d = pd(s); d.setDate(d.getDate()+n); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+var API_URL = 'https://script.google.com/macros/s/AKfycbxwHSQgnDUr435yFNxYTBGhILVLoGDytwiRDoFD26cVlM_I-goNiUhwKRs00TsaW4OV/exec';   // GitHub Pages hosting: paste your Apps Script Web app URL (ending /exec) between the quotes
+function api(fn){
+  var a = Array.prototype.slice.call(arguments, 1);
+  if (typeof google !== 'undefined' && google.script && google.script.run) {
+    return new Promise(function(res, rej){
+      var r = google.script.run.withSuccessHandler(res).withFailureHandler(function(e){ rej(new Error((e && e.message) || String(e))); });
+      r[fn].apply(r, a);
+    });
+  }
+  if (!API_URL) return Promise.reject(new Error('API_URL is not set in index.html'));
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: a }), redirect: 'follow' })
+    .then(function(r){ return r.json(); })
+    .then(function(j){ if (!j.ok) throw new Error(j.error || 'Server error'); return j.data; });
+}
+var tt;
+function toast(msg, err){ var t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : ''); clearTimeout(tt); tt = setTimeout(function(){ t.className = ''; }, err ? 5000 : 2600); }
+function setLive(kind, txt){ $('#live').innerHTML = '<span class="dot ' + kind + '"></span><span>' + esc(txt) + '</span>'; }
+
+/* ---------- data / refresh ---------- */
+function setState(r){ S = r.state; setLive('', 'Live ' + (S.serverTime || '').slice(11)); render(); }
+function refresh(silent){
+  if (!silent) setLive('spin', 'Updating…');
+  return api('api_getState').then(setState).catch(function(e){ setLive('off', 'Offline'); if(!silent) toast(e.message, true); });
+}
+function act(fn, args, btn){
+  if (busy) return Promise.resolve();
+  busy = true; if (btn) btn.disabled = true; setLive('spin', 'Saving…');
+  return api.apply(null, [fn].concat(args, [me])).then(function(r){
+    busy = false; closeModal(); setState(r);
+    toast(r.msg || 'Saved'); if (r.warn) setTimeout(function(){ toast('⚠ ' + r.warn, true); }, 2700);
+  }).catch(function(e){ busy = false; if (btn) btn.disabled = false; setLive('', 'Live'); toast(e.message, true); });
+}
+
+/* ---------- derived ---------- */
+function projection(){
+  var on = {}; S.stock.forEach(function(t){ on[t.type] = t.onHand; });
+  var plan = S.plan.filter(function(p){ return p.status === 'Planned'; });
+  var short = {}, need7 = {}, end = addDays(S.today, 6), overdue = 0;
+  S.types.forEach(function(t){ need7[t] = 0; });
+  plan.forEach(function(p){
+    if (p.date < S.today) overdue++;
+    on['ACM'] -= p.kgACM; on['Saputo/Kisaan'] -= p.kgSK;
+    if (p.date <= end) { need7['ACM'] += p.kgACM; need7['Saputo/Kisaan'] += p.kgSK; }
+    S.types.forEach(function(t){ if (on[t] < 0 && !short[t]) short[t] = { date: p.date, kg: -on[t] }; else if (short[t] && on[t] < 0) short[t].kg = -on[t]; });
+  });
+  return { after: on, short: short, need7: need7, overdue: overdue };
+}
+function planLine(p){
+  if (p.status === 'No ghee') return 'No ghee';
+  var bl = (p.sources.toLowerCase().indexOf('acm') >= 0 && /saputo|kisaan/i.test(p.sources)) ? ' · ' + p.skPct + '/' + p.acmPct : '';
+  return p.batches + ' batch' + (p.batches > 1 ? 'es' : '') + ' · ' + esc(p.sources) + bl;
+}
+function statusTag(s){ return s === 'Done' ? '<span class="tag ok">Done</span>' : s === 'No ghee' ? '<span class="tag gray">No ghee</span>' : '<span class="tag">Planned</span>'; }
+
+/* ---------- views ---------- */
+function render(){
+  if (!S) return;
+  document.querySelectorAll('#tabs button').forEach(function(b){ b.classList.toggle('on', b.dataset.tab === tab); });
+  $('#who').textContent = '👤 ' + (me || 'Set name');
+  $('#view').innerHTML = ({ home: vHome, receive: vReceive, stock: vStock, plan: vPlan })[tab]();
+}
+function stockCards(){
+  var pr = projection();
+  return '<div class="grid">' + S.stock.map(function(t){
+    return '<div class="card stat ' + (t.onHand < 0 ? 'neg' : '') + '"><div class="label">' + esc(t.type) + ' butter on hand</div>' +
+      '<div class="big">' + kg(t.onHand) + ' <small>kg</small></div>' +
+      '<div class="sub">Next 7 days planned: ' + kg(pr.need7[t.type]) + ' kg</div></div>';
+  }).join('') + '</div>';
+}
+function vHome(){
+  var pr = projection(), h = '', al = '';
+  S.types.forEach(function(t){ if (pr.short[t]) al += '<div class="alert bad">⚠️ <div><b>' + esc(t) + '</b> runs short from ' + dLong(pr.short[t].date) + ' – need about ' + kg(pr.short[t].kg) + ' kg more to cover the plan.</div></div>'; });
+  if (pr.overdue) al += '<div class="alert warn">⏰ <div>' + pr.overdue + ' planned day' + (pr.overdue > 1 ? 's' : '') + ' before today not marked <b>Done</b> – stock hasn\'t been deducted yet.</div></div>';
+  var onOrder = S.receipts.filter(function(r){ return r.kgReceived === ''; });
+  if (onOrder.length) al += '<div class="alert warn">🚚 <div>' + onOrder.length + ' order' + (onOrder.length > 1 ? 's' : '') + ' not yet received: ' + onOrder.map(function(r){ return 'PO ' + esc(r.po) + ' (' + kg(r.kgOrdered) + ' kg ' + esc(r.supplier) + ')'; }).join(', ') + '</div></div>';
+  if (!al) al = '<div class="alert ok">✅ <div>Stock covers the plan. Nothing needs attention.</div></div>';
+  h += stockCards() + '<h2>Needs attention</h2>' + al;
+  var td = S.plan.filter(function(p){ return p.date === S.today; })[0];
+  h += '<h2>Today · ' + dLong(S.today) + '</h2>';
+  if (!td) h += '<div class="card empty">Nothing planned for today.<br><br><button class="btn sm" data-a="newplan" data-date="' + S.today + '">Plan today</button></div>';
+  else {
+    h += '<div class="card today"><div class="row" style="border:0;padding:0;margin:0;background:none" data-a="plan" data-id="' + td.id + '"><div><div class="t">' + planLine(td) + '</div><div class="s">' +
+      (td.status === 'No ghee' ? '' : '👷 ' + esc(td.operator || '—') + ' + ' + esc(td.assistant || '—') + ' · uses ' + kg(td.kgACM + td.kgSK) + ' kg butter') + '</div>' +
+      (td.fillOf ? '<div class="s">🫙 Filling ' + esc(td.fillSize || '') + ' from ' + dLong(td.fillOf) + ' batch</div>' : '') + '</div><div class="r">' + statusTag(td.status) + '</div></div>' +
+      (td.status === 'Planned' ? '<div class="sp"></div><button class="btn ok" data-a="done" data-id="' + td.id + '">✓ Mark today\'s production done</button>' : '') + '</div>';
+  }
+  var up = S.plan.filter(function(p){ return p.date > S.today && p.status !== 'No ghee'; }).slice(0, 4);
+  if (up.length) h += '<h2>Coming up</h2>' + up.map(planRow).join('');
+  h += '<div class="sp"></div><div class="bar"><button class="btn" data-a="newreceipt">📥 Receive butter</button></div>';
+  return h;
+}
+function planRow(p){
+  var pr = projection();
+  return '<div class="row" data-a="plan" data-id="' + p.id + '"><div class="day"><div class="d"><span>' + pd(p.date).toLocaleDateString('en-AU',{weekday:'short'}) + '</span><b>' + pd(p.date).getDate() + '</b><span>' + pd(p.date).toLocaleDateString('en-AU',{month:'short'}) + '</span></div><div><div class="t">' + planLine(p) + '</div><div class="s">' +
+    (p.status === 'No ghee' ? '' : '👷 ' + esc(p.operator || '—') + ' + ' + esc(p.assistant || '—') + ' · ' + kg(p.kgACM + p.kgSK) + ' kg') + (p.fillOf ? '<br>🫙 Fill ' + esc(p.fillSize || '?') + ' (batch of ' + dLong(p.fillOf) + ')' : '') + '</div></div></div><div class="r">' + statusTag(p.status) + '</div></div>';
+}
+function vReceive(){
+  var h = '<div class="bar"><button class="btn" data-a="newreceipt">📥 Receive / order butter</button></div><h2>Recent orders &amp; deliveries</h2>';
+  if (!S.receipts.length) return h + '<div class="empty">No receipts yet.</div>';
+  return h + S.receipts.map(function(r){
+    var v = r.kgReceived === '' ? null : r.kgReceived - r.kgOrdered;
+    return '<div class="row" data-a="receipt" data-id="' + r.id + '"><div><div class="t">PO ' + esc(r.po) + ' · ' + esc(r.supplier) + '</div><div class="s">Ordered ' + dShort(r.orderDate) + ' · ' + kg(r.kgOrdered) + ' kg' + (r.kgReceived === '' ? '' : '<br>Delivered ' + dShort(r.deliveryDate) + ' · ' + esc(r.location) + (r.receivedBy ? ' · ' + esc(r.receivedBy) : '')) + '</div></div>' +
+      '<div class="r">' + (r.kgReceived === '' ? '<span class="tag">On order</span>' : '<div class="t">' + kg(r.kgReceived) + ' kg</div><div class="s ' + (v === 0 ? '' : v > 0 ? 'pos' : 'negc') + '">' + (v === 0 ? 'exact' : (v > 0 ? '+' : '') + kg(v) + ' vs order') + '</div>') + '</div></div>';
+  }).join('');
+}
+function vStock(){
+  var h = stockCards() + '<div class="sp"></div><button class="btn ghost" data-a="adjust">⚖️ Stock-take / adjust</button>';
+  var lots = S.receipts.filter(function(r){ return r.kgReceived !== '' && r.batchNos; }).slice(0, 12);
+  h += '<h2>Recent lots &amp; batch numbers</h2>';
+  h += lots.length ? lots.map(function(r){ return '<div class="card" style="margin-bottom:8px"><div class="t" style="font-weight:600">' + esc(r.supplier) + ' · ' + kg(r.kgReceived) + ' kg <span class="s" style="font-weight:400;color:var(--muted)">· ' + dShort(r.deliveryDate) + ' · PO ' + esc(r.po) + '</span></div>' + r.batchNos.split(/[,;\n]+/).filter(function(x){ return x.trim(); }).map(function(b){ return '<span class="tag">' + esc(b.trim()) + '</span>'; }).join('') + '</div>'; }).join('') : '<div class="empty">No lots with batch numbers yet.</div>';
+  h += '<h2>Stock movements</h2>';
+  h += S.movements.slice(0, 30).map(function(m){ return '<div class="row" style="cursor:default"><div><div class="t">' + esc(m.type) + ' · ' + esc(m.kind) + '</div><div class="s">' + dShort(m.date) + ' · ' + esc(m.note) + (m.by ? ' · ' + esc(m.by) : '') + '</div></div><div class="r ' + (m.kg >= 0 ? 'pos' : 'negc') + '">' + (m.kg >= 0 ? '+' : '') + kg(m.kg) + ' kg</div></div>'; }).join('');
+  return h;
+}
+function vPlan(){
+  var h = '<div class="bar"><button class="btn" data-a="newplan">➕ Add / plan a day</button></div>';
+  var from = showPast ? '0000' : addDays(S.today, -3);
+  var list = S.plan.filter(function(p){ return p.date >= from; });
+  var pr = projection();
+  Object.keys(pr.short).forEach(function(t){ h += '<div class="alert bad">⚠️ <div><b>' + esc(t) + '</b> short from ' + dLong(pr.short[t].date) + ' (about ' + kg(pr.short[t].kg) + ' kg).</div></div>'; });
+  h += list.length ? list.map(function(p){ return (p.date === S.today ? '<div class="today" style="border-radius:12px;margin-bottom:8px">' : '') + planRow(p) + (p.date === S.today ? '</div>' : ''); }).join('') : '<div class="empty">No days planned yet.</div>';
+  h += '<div style="text-align:center;margin-top:8px"><button class="btn ghost sm" data-a="past">' + (showPast ? 'Hide earlier days' : 'Show earlier days') + '</button></div>';
+  return h;
+}
+
+/* ---------- modals ---------- */
+function openModal(html){ $('#sheet').innerHTML = html; $('#modal').classList.remove('hide'); modalOpen = true; }
+function closeModal(){ $('#modal').classList.add('hide'); modalOpen = false; }
+function selOpts(list, cur, blank){ return (blank ? '<option value="">' + esc(blank) + '</option>' : '') + list.map(function(x){ return '<option' + (x === cur ? ' selected' : '') + '>' + esc(x) + '</option>'; }).join(''); }
+function val(id){ var e = $('#' + id); return e ? e.value : ''; }
+
+function openReceipt(id){
+  var r = id ? S.receipts.filter(function(x){ return x.id === id; })[0] : null;
+  var st = S.settings, sup = st.suppliers.map(function(s){ return s.name; });
+  var got = r ? r.kgReceived !== '' : true;
+  r = r || { orderDate: S.today, deliveryDate: S.today, location: 'Shepparton', receivedBy: me, supplier: '', po: '', kgOrdered: '', kgReceived: '', batchNos: '', notes: '' };
+  openModal('<h3>' + (id ? 'Edit order / receipt' : 'Receive butter') + '<button class="x" data-a="close">×</button></h3>' +
+    '<label class="f">Supplier</label><select id="r_sup">' + selOpts(sup, r.supplier, 'Choose…') + '</select><div class="hint" id="r_type"></div>' +
+    '<div class="two"><div><label class="f">PO number</label><input id="r_po" inputmode="numeric" value="' + esc(r.po) + '"></div><div><label class="f">Order date</label><input id="r_od" type="date" value="' + esc(r.orderDate) + '"></div></div>' +
+    '<label class="f">Volume ordered (kg)</label><input id="r_ko" type="number" inputmode="decimal" value="' + esc(r.kgOrdered) + '">' +
+    '<label class="f" style="margin-top:16px"><input type="checkbox" id="r_got" ' + (got ? 'checked' : '') + ' style="width:18px;height:18px;min-height:0;vertical-align:-3px;margin-right:8px;accent-color:var(--accent)">Delivered already</label>' +
+    '<div id="r_dl"><div class="two"><div><label class="f">Delivery date</label><input id="r_dd" type="date" value="' + esc(r.deliveryDate || S.today) + '"></div><div><label class="f">Volume received (kg)</label><input id="r_kr" type="number" inputmode="decimal" value="' + esc(r.kgReceived) + '"></div></div>' +
+    '<div class="hint" id="r_var"></div>' +
+    '<div class="two"><div><label class="f">Location</label><select id="r_loc">' + selOpts(st.locations, r.location) + '</select></div><div><label class="f">Received by</label><select id="r_by">' + selOpts(st.staff, r.receivedBy, '—') + '</select></div></div>' +
+    '<label class="f">Batch numbers (comma separated)</label><textarea id="r_bn">' + esc(r.batchNos) + '</textarea></div>' +
+    '<label class="f">Notes</label><input id="r_nt" value="' + esc(r.notes) + '">' +
+    '<div class="sp"></div><div class="sp"></div><button class="btn" id="r_save">Save</button>' + (id ? '<div class="sp"></div><button class="btn danger" id="r_del">Delete this record</button>' : ''));
+  var upd = function(){
+    var s = st.suppliers.filter(function(x){ return x.name === val('r_sup'); })[0];
+    $('#r_type').textContent = s ? 'Goes into stock as: ' + s.type : '';
+    $('#r_dl').classList.toggle('hide', !$('#r_got').checked);
+    var o = parseFloat(val('r_ko')), k = parseFloat(val('r_kr')), v = $('#r_var');
+    if (!isNaN(o) && !isNaN(k) && $('#r_got').checked) { var d = k - o; v.textContent = d === 0 ? 'Matches the order exactly.' : (d > 0 ? '+' : '') + kg(d) + ' kg vs ordered (' + (d / o * 100).toFixed(1) + '%)'; v.className = 'hint ' + (Math.abs(d / o) > 0.02 ? 'bad' : 'ok'); } else v.textContent = '';
+  };
+  ['r_sup','r_ko','r_kr','r_got'].forEach(function(i){ $('#' + i).addEventListener('input', upd); $('#' + i).addEventListener('change', upd); });
+  upd();
+  $('#r_save').onclick = function(){
+    var got = $('#r_got').checked;
+    act('api_saveReceipt', [{ id: id || '', supplier: val('r_sup'), po: val('r_po'), orderDate: val('r_od'), kgOrdered: val('r_ko'),
+      deliveryDate: got ? val('r_dd') : '', kgReceived: got ? val('r_kr') : '', location: val('r_loc'), receivedBy: val('r_by'), batchNos: got ? val('r_bn') : '', notes: val('r_nt') }], this);
+  };
+  if (id) $('#r_del').onclick = function(){ if (confirm('Delete this record and its stock entry?')) act('api_deleteReceipt', [id], this); };
+}
+
+function fillCandidates(date){ return S.plan.filter(function(p){ return p.status !== 'No ghee' && p.date < date; }); }
+function openPlan(id, date){
+  var p = id ? S.plan.filter(function(x){ return x.id === id; })[0] : null;
+  var st = S.settings;
+  if (!p) {
+    var last = S.plan.filter(function(x){ return x.status !== 'No ghee'; }).slice(-1)[0] || {};
+    var maxD = S.plan.length ? S.plan[S.plan.length - 1].date : addDays(S.today, -1);
+    p = { date: date || addDays(maxD > S.today ? maxD : addDays(S.today, -1), 1), status: 'Planned', batches: 1, sources: 'Saputo, ACM', skPct: 70, operator: last.operator || '', assistant: last.assistant || '', fillOf: '', fillSize: '', notes: '', _new: true };
+  }
+  var src = p.sources.toLowerCase();
+  openModal('<h3>' + (id ? 'Edit day' : 'Plan a day') + '<button class="x" data-a="close">×</button></h3>' +
+    '<label class="f">Date</label><input id="p_d" type="date" value="' + esc(p.date) + '">' +
+    '<label class="f">Status</label><div class="seg">' + ['Planned','Done','No ghee'].map(function(s){ return '<label><input type="radio" name="p_s" value="' + s + '"' + (p.status === s ? ' checked' : '') + '><span>' + s + '</span></label>'; }).join('') + '</div>' +
+    '<div id="p_run"><label class="f">Batches</label><div class="stepper"><button type="button" id="p_m">−</button><input id="p_b" type="number" inputmode="numeric" value="' + p.batches + '"><button type="button" id="p_p">+</button></div>' +
+    '<label class="f">Butter sources</label><div class="checks">' + ['Saputo','ACM','Kisaan'].map(function(s){ return '<label><input type="checkbox" class="p_src" value="' + s + '"' + (src.indexOf(s.toLowerCase()) >= 0 ? ' checked' : '') + '>' + s + '</label>'; }).join('') + '</div>' +
+    '<div id="p_bl"><label class="f">Blend: Saputo/Kisaan %</label><input id="p_sk" type="number" inputmode="numeric" min="0" max="100" value="' + (p.skPct === '' ? 70 : p.skPct) + '"><div class="hint" id="p_blt"></div></div>' +
+    '<div class="hint" id="p_use"></div>' +
+    '<div class="two"><div><label class="f">Operator</label><select id="p_op">' + selOpts(st.staff, p.operator, '—') + '</select></div><div><label class="f">Assistant</label><select id="p_as">' + selOpts(st.staff, p.assistant, '—') + '</select></div></div></div>' +
+    '<div class="two"><div><label class="f">Fill batch made on</label><select id="p_fo"></select></div><div><label class="f">Fill size</label><select id="p_fs">' + selOpts(st.fillSizes, p.fillSize, '—') + '</select></div></div>' +
+    '<label class="f">Notes</label><input id="p_nt" value="' + esc(p.notes) + '">' +
+    '<div class="sp"></div><div class="sp"></div><button class="btn" id="p_save">Save</button>' +
+    (id && p.status === 'Planned' ? '<div class="sp"></div><button class="btn ok" id="p_done">✓ Save &amp; mark done (deduct stock)</button>' : '') +
+    (id ? '<div class="sp"></div><button class="btn danger" id="p_del">Delete this day</button>' : ''));
+  var auto = !!p._new || !p.fillOf;
+  var buildFill = function(sel){
+    var c = fillCandidates(val('p_d')), cur = sel;
+    if (auto && !cur && c.length) cur = c[c.length - 1].date;
+    $('#p_fo').innerHTML = '<option value="">— none —</option>' + c.map(function(x){ return '<option value="' + x.date + '"' + (x.date === cur ? ' selected' : '') + '>' + dLong(x.date) + '</option>'; }).join('');
+    if (cur && !c.some(function(x){ return x.date === cur; })) $('#p_fo').insertAdjacentHTML('beforeend', '<option value="' + esc(cur) + '" selected>' + dLong(cur) + '</option>');
+  };
+  var sources = function(){ return Array.prototype.map.call(document.querySelectorAll('.p_src:checked'), function(x){ return x.value; }); };
+  var upd = function(){
+    var status = document.querySelector('input[name=p_s]:checked').value;
+    $('#p_run').classList.toggle('hide', status === 'No ghee');
+    var s = sources(), both = s.indexOf('ACM') >= 0 && s.some(function(x){ return x !== 'ACM'; });
+    $('#p_bl').classList.toggle('hide', !both);
+    var sk = Math.min(100, Math.max(0, parseFloat(val('p_sk')) || 0));
+    $('#p_blt').textContent = 'ACM ' + (100 - sk) + '% · Saputo/Kisaan ' + sk + '%';
+    var b = parseInt(val('p_b')) || 0, tot = b * S.settings.batchKg, acm = both ? tot * (100 - sk) / 100 : (s.indexOf('ACM') >= 0 ? tot : 0);
+    $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (ACM ' + kg(acm) + ' · Saputo/Kisaan ' + kg(tot - acm) + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
+  };
+  buildFill(p.fillOf);
+  $('#p_d').addEventListener('change', function(){ buildFill(auto ? '' : val('p_fo')); });
+  $('#p_fo').addEventListener('change', function(){ auto = false; });
+  $('#p_m').onclick = function(){ $('#p_b').value = Math.max(1, (parseInt(val('p_b')) || 1) - 1); upd(); };
+  $('#p_p').onclick = function(){ $('#p_b').value = (parseInt(val('p_b')) || 0) + 1; upd(); };
+  document.querySelectorAll('#sheet input,#sheet select').forEach(function(e){ e.addEventListener('input', upd); e.addEventListener('change', upd); });
+  upd();
+  var collect = function(statusOverride){
+    return { id: id || '', date: val('p_d'), status: statusOverride || document.querySelector('input[name=p_s]:checked').value, product: 'Aussie', batches: val('p_b'),
+      sources: sources().join(', '), skPct: val('p_sk'), operator: val('p_op'), assistant: val('p_as'), fillOf: val('p_fo'), fillSize: val('p_fs'), notes: val('p_nt') };
+  };
+  $('#p_save').onclick = function(){ act('api_savePlan', [collect()], this); };
+  if ($('#p_done')) $('#p_done').onclick = function(){ act('api_savePlan', [collect('Done')], this); };
+  if (id) $('#p_del').onclick = function(){ if (confirm('Delete this day? Any stock deducted for it will be returned.')) act('api_deletePlan', [id], this); };
+}
+
+function openAdjust(){
+  openModal('<h3>Stock-take / adjust<button class="x" data-a="close">×</button></h3><div class="hint">Use after counting real stock. Enter the difference: + to add, − to remove.</div>' +
+    '<label class="f">Butter type</label><select id="a_t">' + selOpts(S.types, '') + '</select>' +
+    '<label class="f">Adjustment (kg, e.g. -25 or 40)</label><input id="a_k" type="number" inputmode="decimal">' +
+    '<label class="f">Reason</label><input id="a_n" placeholder="e.g. Stock-take count, spillage">' +
+    '<div class="sp"></div><div class="sp"></div><button class="btn" id="a_save">Save adjustment</button>');
+  $('#a_save').onclick = function(){ act('api_adjust', [{ type: val('a_t'), kg: val('a_k'), note: val('a_n') }], this); };
+}
+function askName(){
+  var st = S ? S.settings.staff : [];
+  openModal('<h3>Who is using this?<button class="x" data-a="close">×</button></h3><div class="hint">Your name is saved on this device and recorded with every change.</div>' +
+    '<div class="checks" style="margin-top:12px">' + st.map(function(n){ return '<button class="chip" data-a="name" data-n="' + esc(n) + '">' + esc(n) + '</button>'; }).join('') + '</div>' +
+    '<label class="f">Or type a name</label><input id="n_o" value="' + esc(me) + '"><div class="sp"></div><button class="btn" id="n_ok">Continue</button>');
+  $('#n_ok').onclick = function(){ setName($('#n_o').value); };
+}
+function setName(n){ n = String(n || '').trim(); if (!n) return; me = n; lsSet('bt_name', n); closeModal(); render(); }
+
+/* ---------- events ---------- */
+document.addEventListener('click', function(e){
+  var t = e.target.closest('[data-tab],[data-a]'); if (!t) { if (e.target.id === 'modal') closeModal(); return; }
+  if (t.dataset.tab) { tab = t.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  var a = t.dataset.a;
+  if (a === 'close') closeModal();
+  else if (a === 'newreceipt') openReceipt();
+  else if (a === 'receipt') openReceipt(t.dataset.id);
+  else if (a === 'newplan') openPlan(null, t.dataset.date);
+  else if (a === 'plan') openPlan(t.dataset.id);
+  else if (a === 'adjust') openAdjust();
+  else if (a === 'past') { showPast = !showPast; render(); }
+  else if (a === 'done') act('api_setStatus', [t.dataset.id, 'Done'], t);
+  else if (a === 'name') setName(t.dataset.n);
+});
+$('#who').onclick = askName;
+$('#live').onclick = function(){ refresh(); };
+document.addEventListener('visibilitychange', function(){ if (!document.hidden && !modalOpen) refresh(true); });
+setInterval(function(){ if (!document.hidden && !modalOpen && !busy) refresh(true); }, 30000);
+
+me = lsGet('bt_name');
+refresh().then(function(){ if (S && !me) askName(); });
+</script>
+</body>
+</html>
