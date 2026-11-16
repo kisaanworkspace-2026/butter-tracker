@@ -724,7 +724,7 @@ function openPlan(id, date){
     var sk = +val('p_sk') || 0; $('#p_blt').textContent = 'Saputo/Kisaan ' + sk + '%  ·  ACM ' + (100 - sk) + '%';
     var b = parseInt(val('p_b')) || 0, tot = b * S.settings.batchKg, acm = both ? tot * (100 - sk) / 100 : (s.indexOf('ACM') >= 0 ? tot : 0);
     $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (ACM ' + kg(acm) + ' · Saputo/Kisaan ' + kg(tot - acm) + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
-    var dup = S.plan.filter(function(x){ return x.date === val('p_d') && x.id !== id; })[0], dh = $('#p_dup');
+    var dup = null, dh = $('#p_dup');
     dh.classList.toggle('hide', !dup); dh.innerHTML = dup ? 'This date already has an entry. <button class="link" id="p_open" type="button">Open It Instead</button>' : '';
     if (dup) $('#p_open').onclick = function(){ openPlan(dup.id); };
   };
