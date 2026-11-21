@@ -672,7 +672,7 @@ function openReceipt(id){
   var got = r ? r.kgReceived !== '' : true;
   r = r || { orderDate: S.today, deliveryDate: S.today, location: 'Shepparton', receivedBy: me, supplier: '', po: '', kgOrdered: '', kgReceived: '', batchNos: '', notes: '' };
   var body = '<label class="f" style="margin-top:6px">Supplier</label>' + radios('r_sup', sup, r.supplier) + '<div class="hint" id="r_type"></div>' +
-    '<div class="two"><div><label class="f">PO Number</label><input type="text" id="r_po" inputmode="numeric" value="' + esc(r.po) + '" placeholder="e.g. 141"></div><div><label class="f">Order Date</label>' + dateField('r_od', r.orderDate, { title: 'Order Date' }) + '</div></div>' +
+    '<div class="two"><div><label class="f">PO Number</label><input type="text" id="r_po" value="' + esc(r.po) + '" placeholder="e.g. 141"></div><div><label class="f">Order Date</label>' + dateField('r_od', r.orderDate, { title: 'Order Date' }) + '</div></div>' +
     '<label class="f">Volume Ordered (kg)</label><input type="number" id="r_ko" inputmode="decimal" value="' + esc(r.kgOrdered) + '" placeholder="e.g. 5000">' +
     '<div style="margin:20px 0 4px"><label class="sw"><input type="checkbox" id="r_got" ' + (got ? 'checked' : '') + '><i></i>Delivered Already</label></div>' +
     '<div id="r_dl"><div class="two"><div><label class="f">Delivery Date</label>' + dateField('r_dd', r.deliveryDate || S.today, { title: 'Delivery Date' }) + '</div><div><label class="f">Volume Received (kg)</label><input type="number" id="r_kr" inputmode="decimal" value="' + esc(r.kgReceived) + '"></div></div><div class="hint" id="r_var"></div>' +
