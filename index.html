@@ -353,9 +353,32 @@ function api(fn){
     });
   }
   if (!API_URL) return Promise.reject(new Error('Not connected: set apiUrl in config.js (see SETUP.md)'));
-  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ fn: fn, args: a }), redirect: 'follow' })
+  return callApi(fn, a).catch(function(e){
+    if (e.code !== 'PIN') throw e;
+    return askPin(e.message).then(function(){ return callApi(fn, a); });
+  });
+}
+function callApi(fn, a){
+  return fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ fn: fn, args: a, pin: lsGet('bt_pin') }), redirect: 'follow' })
     .then(function(r){ return r.json(); })
-    .then(function(j){ if (!j.ok) throw new Error(j.error || 'Server error'); return j.data; });
+    .then(function(j){ if (!j.ok) { var e = new Error(j.error || 'Server error'); e.code = j.code || ''; throw e; } return j.data; });
+}
+/* Asks for the staff PIN once per device. Resolves when a PIN is saved. */
+function askPin(msg){
+  return new Promise(function(res, rej){
+    lsSet('bt_pin', '');
+    openModal('Enter Staff PIN', '<div class="hint">' + esc(msg && msg.indexOf('Wrong') === 0 ? 'Wrong PIN. Please try again.' : 'Ask your manager for the staff PIN. It is saved on this device.') + '</div>' +
+      '<label class="f">Staff PIN</label><input id="pin_in" type="password" inputmode="numeric" autocomplete="off">' +
+      '<div class="sp"></div><button class="btn" id="pin_ok">Continue</button>');
+    setTimeout(function(){ var i = $('#pin_in'); if (i) i.focus(); }, 150);
+    $('#pin_ok').onclick = function(){
+      var v = String($('#pin_in').value || '').trim();
+      if (!v) { toast('Enter the PIN', true); return; }
+      lsSet('bt_pin', v); closeModal(); res();
+    };
+    window.__pinReject = rej;
+  });
 }
 var tt, working = 0;
 function toast(msg, err){ var t = $('#toast'); t.innerHTML = ic(err ? 'warn' : 'check', 18) + '<span>' + esc(msg) + '</span>'; t.className = 'show' + (err ? ' err' : ''); clearTimeout(tt); tt = setTimeout(function(){ t.className = ''; }, err ? 5500 : 2600); }
@@ -672,7 +695,7 @@ function openReceipt(id){
   var got = r ? r.kgReceived !== '' : true;
   r = r || { orderDate: S.today, deliveryDate: S.today, location: 'Shepparton', receivedBy: me, supplier: '', po: '', kgOrdered: '', kgReceived: '', batchNos: '', notes: '' };
   var body = '<label class="f" style="margin-top:6px">Supplier</label>' + radios('r_sup', sup, r.supplier) + '<div class="hint" id="r_type"></div>' +
-    '<div class="two"><div><label class="f">PO Number</label><input type="text" id="r_po" value="' + esc(r.po) + '" placeholder="e.g. 141"></div><div><label class="f">Order Date</label>' + dateField('r_od', r.orderDate, { title: 'Order Date' }) + '</div></div>' +
+    '<div class="two"><div><label class="f">PO Number</label><input type="text" id="r_po" inputmode="numeric" value="' + esc(r.po) + '" placeholder="e.g. 141"></div><div><label class="f">Order Date</label>' + dateField('r_od', r.orderDate, { title: 'Order Date' }) + '</div></div>' +
     '<label class="f">Volume Ordered (kg)</label><input type="number" id="r_ko" inputmode="decimal" value="' + esc(r.kgOrdered) + '" placeholder="e.g. 5000">' +
     '<div style="margin:20px 0 4px"><label class="sw"><input type="checkbox" id="r_got" ' + (got ? 'checked' : '') + '><i></i>Delivered Already</label></div>' +
     '<div id="r_dl"><div class="two"><div><label class="f">Delivery Date</label>' + dateField('r_dd', r.deliveryDate || S.today, { title: 'Delivery Date' }) + '</div><div><label class="f">Volume Received (kg)</label><input type="number" id="r_kr" inputmode="decimal" value="' + esc(r.kgReceived) + '"></div></div><div class="hint" id="r_var"></div>' +
