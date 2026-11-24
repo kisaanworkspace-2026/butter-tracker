@@ -260,6 +260,20 @@ input[type=range]{width:100%;accent-color:var(--brand);height:36px}
 @media(min-width:900px){#toast{bottom:28px}}
 /* Title Case for headings, buttons and labels */
 h1,h2,h3,.btn,.chip,.link,.pill,.seg,.f,.sec h2,.wkh,.wor,.calh b{text-transform:capitalize}
+/* Staff access screen */
+.gate{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px;overflow:auto}
+.gcard{width:100%;max-width:380px;text-align:center;background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:34px 26px 24px;box-shadow:var(--sh2)}
+.gcard img{width:150px;height:auto;display:block;margin:0 auto 18px}
+.gcard h2{font-size:22px;margin:0 0 6px;letter-spacing:-.01em;text-transform:none}
+.gsub{color:var(--muted);font-size:14.5px;margin:0 0 22px;line-height:1.5}
+.pinwrap{position:relative}
+.pin-in{width:100%;font-size:24px;letter-spacing:.35em;text-align:center;padding:14px 64px 14px 16px;border-radius:14px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-family:inherit}
+.pin-in::placeholder{letter-spacing:.2em;color:var(--muted)}
+.pin-in:focus{outline:2px solid var(--brand);outline-offset:0;border-color:transparent}
+.eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--brand);font-family:inherit;font-weight:600;font-size:13px;cursor:pointer;padding:8px}
+.gerr{min-height:22px;color:var(--bad);font-size:14px;margin:12px 0 4px;font-weight:600}
+.gfoot{color:var(--muted);font-size:12.5px;margin:18px 0 0}
+#pin_ok{margin-top:6px}
 </style>
 </head>
 <body>
@@ -364,20 +378,33 @@ function callApi(fn, a){
     .then(function(r){ return r.json(); })
     .then(function(j){ if (!j.ok) { var e = new Error(j.error || 'Server error'); e.code = j.code || ''; throw e; } return j.data; });
 }
-/* Asks for the staff PIN once per device. Resolves when a PIN is saved. */
+/* Staff access screen: shown on first use and after a wrong PIN. Resolves when a PIN is saved. */
 function askPin(msg){
-  return new Promise(function(res, rej){
+  return new Promise(function(res){
     lsSet('bt_pin', '');
-    openModal('Enter Staff PIN', '<div class="hint">' + esc(msg && msg.indexOf('Wrong') === 0 ? 'Wrong PIN. Please try again.' : 'Ask your manager for the staff PIN. It is saved on this device.') + '</div>' +
-      '<label class="f">Staff PIN</label><input id="pin_in" type="password" inputmode="numeric" autocomplete="off">' +
-      '<div class="sp"></div><button class="btn" id="pin_ok">Continue</button>');
-    setTimeout(function(){ var i = $('#pin_in'); if (i) i.focus(); }, 150);
-    $('#pin_ok').onclick = function(){
-      var v = String($('#pin_in').value || '').trim();
-      if (!v) { toast('Enter the PIN', true); return; }
-      lsSet('bt_pin', v); closeModal(); res();
+    var old = document.getElementById('gate'); if (old) old.remove();
+    var mk = document.querySelector('header img'), logo = mk ? '<img src="' + mk.src + '" alt="Kisaan">' : '';
+    var wrong = msg && msg.indexOf('Wrong') === 0;
+    var g = document.createElement('div'); g.id = 'gate'; g.className = 'gate';
+    g.innerHTML = '<form class="gcard" id="gform" autocomplete="off">' + logo +
+      '<h2>Staff Access</h2><p class="gsub">Enter the staff PIN to open Butter Tracker. It is remembered on this device.</p>' +
+      '<div class="pinwrap"><input class="pin-in" id="pin_in" type="password" inputmode="numeric" maxlength="12" placeholder="••••" aria-label="Staff PIN">' +
+      '<button type="button" class="eye" id="pin_eye">Show</button></div>' +
+      '<div class="gerr" id="pin_err">' + (wrong ? 'That PIN is not correct. Please try again.' : '') + '</div>' +
+      '<button class="btn" id="pin_ok" type="submit">Unlock</button>' +
+      '<p class="gfoot">Ask your manager if you do not have the PIN.</p></form>';
+    document.body.appendChild(g);
+    var inp = document.getElementById('pin_in');
+    setTimeout(function(){ inp.focus(); }, 120);
+    document.getElementById('pin_eye').onclick = function(){
+      var show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; this.textContent = show ? 'Hide' : 'Show';
     };
-    window.__pinReject = rej;
+    document.getElementById('gform').onsubmit = function(ev){
+      ev.preventDefault();
+      var v = String(inp.value || '').trim();
+      if (!v) { document.getElementById('pin_err').textContent = 'Please enter the PIN.'; inp.focus(); return; }
+      lsSet('bt_pin', v); g.remove(); res();
+    };
   });
 }
 var tt, working = 0;
