@@ -756,13 +756,16 @@ function openPlan(id, date){
     p = { date: date || addDays(maxD > S.today ? maxD : addDays(S.today, -1), 1), status: 'Planned', batches: 1, sources: 'Saputo, ACM', skPct: 70, kiPct: 0, acmPct: 30, operator: last.operator || '', assistant: last.assistant || '', fillOf: '', fillSize: '', notes: '', _new: true };
   }
   var auto = !!p._new || !p.fillOf, src = p.sources.toLowerCase();
+  var TK = { ACM: 'acmPct', Saputo: 'skPct', Kisaan: 'kiPct' }, tl = S.types;
+  var pv = function(t){ var v = p[TK[t]]; return (v === '' || v == null) ? '' : v; };
+  var splitHtml = '';
+  if (tl.length === 2) splitHtml = '<label class="f">Split Of Butter (Total 100%)</label><input type="range" id="p_sk" min="0" max="100" step="5" value="' + (pv(tl[0]) === '' ? 50 : pv(tl[0])) + '"><div class="hint" id="p_blt"></div>';
+  else if (tl.length > 2) splitHtml = '<label class="f">Split Of Butter (Must Total 100%)</label><div class="two">' + tl.map(function(t){ return '<div><label class="f">' + t + ' %</label><input type="number" class="p_pc" data-t="' + t + '" inputmode="numeric" min="0" max="100" step="1" value="' + (pv(t) === '' ? 0 : pv(t)) + '"></div>'; }).join('') + '</div><div class="hint" id="p_blt"></div>';
   var body = '<label class="f" style="margin-top:6px">Date</label>' + dateField('p_d', p.date, { title: 'Production Date', marks: planMarks, long: true }) + '<div class="hint bad hide" id="p_dup"></div>' +
     '<label class="f">Status</label><div class="seg">' + ['Planned', 'Done', 'No ghee'].map(function(s){ return '<label><input type="radio" name="p_s" value="' + s + '"' + (p.status === s ? ' checked' : '') + '><span>' + stLabel(s) + '</span></label>'; }).join('') + '</div>' +
     '<div id="p_run"><label class="f">Batches</label><div class="stepper"><button type="button" id="p_m" aria-label="Fewer">' + ic('minus', 20) + '</button><input type="number" id="p_b" inputmode="numeric" value="' + p.batches + '"><button type="button" id="p_p" aria-label="More">' + ic('plus', 20) + '</button></div>' +
-    '<label class="f">Butter Sources</label><div class="pills">' + ['Saputo', 'ACM', 'Kisaan'].map(function(s){ return '<label class="pill"><input type="checkbox" class="p_src" value="' + s + '"' + (src.indexOf(s.toLowerCase()) >= 0 ? ' checked' : '') + '><span>' + s + '</span></label>'; }).join('') + '</div>' +
-    '<div id="p_bl"><label class="f">Split Of Butter (Must Total 100%)</label><div class="two">' +
-      [['p_sa', 'Saputo %', p.skPct], ['p_ki', 'Kisaan %', p.kiPct], ['p_ac', 'ACM %', p.acmPct]].map(function(x){ return '<div><label class="f">' + x[1] + '</label><input type="number" id="' + x[0] + '" inputmode="numeric" min="0" max="100" step="1" value="' + (x[2] === '' || x[2] == null ? 0 : x[2]) + '"></div>'; }).join('') +
-      '</div><div class="hint" id="p_blt"></div></div><div class="hint" id="p_use"></div>' +
+    '<label class="f">Butter Sources</label><div class="pills">' + S.types.map(function(s){ return '<label class="pill"><input type="checkbox" class="p_src" value="' + s + '"' + (src.indexOf(s.toLowerCase()) >= 0 ? ' checked' : '') + '><span>' + s + '</span></label>'; }).join('') + '</div>' +
+    '<div id="p_bl"' + (S.types.length > 1 ? '' : ' class="hide"') + '>' + splitHtml + '</div><div class="hint" id="p_use"></div>' +
     '<div class="two"><div><label class="f">Operator</label><select id="p_op">' + selOpts(st.staff, p.operator, '—') + '</select></div><div><label class="f">Assistant</label><select id="p_as">' + selOpts(st.staff, p.assistant, '—') + '</select></div></div></div>' +
     '<label class="f">Fill: Batch Made On</label>' + dateField('p_fo', p.fillOf || (p._new ? suggestFill(p.date) : ''), { title: 'Which Batch Is Being Filled?', long: true, empty: 'None', clear: true, marks: planMarks, start: function(){ return val('p_d'); }, onUser: function(){ auto = false; } }) +
     '<label class="f">Fill Size</label>' + radios('p_fs', [{ v: '', l: 'None' }].concat(st.fillSizes.map(function(x){ return { v: x, l: x }; })), p.fillSize) +
@@ -771,17 +774,26 @@ function openPlan(id, date){
     '<button class="btn block" id="p_save" data-busy="Saving Plan…">Save</button>' + (id && p.status === 'Planned' ? '<button class="btn okb block" id="p_done" data-busy="Updating Stock…">' + ic('check', 18) + 'Save &amp; Mark Done (Deduct Stock)</button>' : '') + (id ? '<button class="btn danger block" id="p_del" data-busy="Deleting…">' + ic('trash', 18) + 'Delete This Day</button>' : ''));
   ['p_d', 'p_fo'].forEach(paintDF);
   var sources = function(){ return Array.prototype.map.call(document.querySelectorAll('.p_src:checked'), function(x){ return x.value; }); };
+  var pcVals = {};
   var upd = function(){
     var status = rv('p_s'); $('#p_run').classList.toggle('hide', status === 'No ghee');
-    var s = sources(), both = s.length > 1, ids = { Saputo: 'p_sa', Kisaan: 'p_ki', ACM: 'p_ac' }, pc = {}, total = 0;
+    var s = sources(), both = s.length > 1, tl = S.types, pc = {}, total = 0;
     $('#p_bl').classList.toggle('hide', !both);
-    Object.keys(ids).forEach(function(k){ $('#' + ids[k]).disabled = s.indexOf(k) < 0; });
-    s.forEach(function(k){ pc[k] = +val(ids[k]) || 0; total += pc[k]; });
-    var ok = !both || Math.round(total) === 100;
-    $('#p_blt').textContent = both ? 'Total ' + total + '%' + (ok ? '  ·  OK' : '  ·  Must Be 100%') : '';
-    $('#p_blt').classList.toggle('bad', both && !ok);
+    if (tl.length === 2) {
+      var sk = +val('p_sk') || 0; pc[tl[0]] = sk; pc[tl[1]] = 100 - sk;
+      $('#p_blt').textContent = tl[0] + ' ' + sk + '%  ·  ' + tl[1] + ' ' + (100 - sk) + '%';
+    } else {
+      document.querySelectorAll('.p_pc').forEach(function(el){ pc[el.dataset.t] = +el.value || 0; el.disabled = s.indexOf(el.dataset.t) < 0; });
+      if (tl.length > 2) {
+        s.forEach(function(k){ total += pc[k] || 0; });
+        var ok = !both || Math.round(total) === 100;
+        $('#p_blt').textContent = both ? 'Total ' + total + '%' + (ok ? '  ·  OK' : '  ·  Must Be 100%') : '';
+        $('#p_blt').classList.toggle('bad', both && !ok);
+      }
+    }
+    pcVals = pc;
     var b = parseInt(val('p_b')) || 0, tot = b * S.settings.batchKg;
-    $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (' + s.map(function(k){ return k + ' ' + kg(tot * (both ? pc[k] : 100) / 100) + ' kg'; }).join(' · ') + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
+    $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (' + s.map(function(k){ return k + ' ' + kg(tot * (both ? (pc[k] || 0) : 100) / 100) + ' kg'; }).join(' · ') + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
     var dup = null, dh = $('#p_dup');
     dh.classList.toggle('hide', !dup); dh.innerHTML = dup ? 'This date already has an entry. <button class="link" id="p_open" type="button">Open It Instead</button>' : '';
     if (dup) $('#p_open').onclick = function(){ openPlan(dup.id); };
@@ -790,7 +802,8 @@ function openPlan(id, date){
   $('#p_m').onclick = function(){ $('#p_b').value = Math.max(1, (parseInt(val('p_b')) || 1) - 1); upd(); };
   $('#p_p').onclick = function(){ $('#p_b').value = (parseInt(val('p_b')) || 0) + 1; upd(); };
   onAll('#sheet input, #sheet select', upd); upd();
-  var collect = function(so){ return { id: id || '', date: val('p_d'), status: so || rv('p_s'), product: 'Aussie', batches: val('p_b'), sources: sources().join(', '), skPct: val('p_sa'), kiPct: val('p_ki'), acmPct: val('p_ac'), operator: val('p_op'), assistant: val('p_as'), fillOf: val('p_fo'), fillSize: rv('p_fs'), notes: val('p_nt') }; };
+  var pcOf = function(t){ return pcVals[t] === undefined ? '' : pcVals[t]; };
+  var collect = function(so){ return { id: id || '', date: val('p_d'), status: so || rv('p_s'), product: 'Aussie', batches: val('p_b'), sources: sources().join(', '), skPct: pcOf('Saputo'), kiPct: pcOf('Kisaan'), acmPct: pcOf('ACM'), operator: val('p_op'), assistant: val('p_as'), fillOf: val('p_fo'), fillSize: rv('p_fs'), notes: val('p_nt') }; };
   $('#p_save').onclick = function(){ act('api_savePlan', [collect()], this); };
   if ($('#p_done')) $('#p_done').onclick = function(){ act('api_savePlan', [collect('Done')], this); };
   if (id) $('#p_del').onclick = function(){ if (confirm('Delete this day? Any stock deducted for it will be returned.')) act('api_deletePlan', [id], this); };
