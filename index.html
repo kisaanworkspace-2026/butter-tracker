@@ -527,7 +527,7 @@ function planItem(p, pr){
   var d = pd(p.date), sh = pr.dayShort[p.date];
   var meta = p.status === 'No ghee' ? '' : '<div class="crew">' + avatar(p.operator || '?') + '<span>' + esc(p.operator || '—') + ' + ' + esc(p.assistant || '—') + '</span></div>';
   return '<div class="item ' + (p.date === S.today ? 'today' : '') + '" data-a="plan" data-id="' + p.id + '"><div class="dbox"><span>' + d.toLocaleDateString('en-AU',{weekday:'short'}) + '</span><b>' + d.getDate() + '</b><span>' + d.toLocaleDateString('en-AU',{month:'short'}) + '</span></div>' +
-    '<div class="mid"><div class="t">' + planLine(p) + '</div><div class="s">' + (p.status === 'No ghee' ? (p.fillOf ? '' : 'Rest day') : kg(p.kgACM + p.kgSK) + ' kg butter') + (p.fillOf ? (p.status === 'No ghee' ? '' : ' · ') + 'Fill ' + (p.fillSize ? esc(p.fillSize) + ' ' : '') + 'from ' + dLong(p.fillOf) : '') + '</div>' + (meta ? '<div style="margin-top:6px">' + meta + '</div>' : '') + '</div>' +
+    '<div class="mid"><div class="t">' + planLine(p) + '</div><div class="s">' + (p.status === 'No ghee' ? (p.fillOf ? '' : 'Rest day') : kg(p.kgACM + p.kgSK) + ' kg butter') + (p.fillOf ? (p.status === 'No ghee' ? '' : ' · ') + 'Fill ' + (p.fillSize ? esc(p.fillSize) + ' ' : '') + 'from ' + dLong(p.fillOf) : '') + '</div>' + (p.notes ? '<div class="s" style="margin-top:4px;font-style:italic">Notes: ' + esc(p.notes) + '</div>' : '') + (meta ? '<div style="margin-top:6px">' + meta + '</div>' : '') + '</div>' +
     '<div class="end">' + stTag(p.status) + (sh ? '<span class="tag bad">' + ic('warn', 12) + 'Short</span>' : '') + '</div></div>';
 }
 function weekStrip(pr){
