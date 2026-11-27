@@ -445,7 +445,7 @@ function quickDone(id){
   var p = S.plan.filter(function(x){ return x.id === id; })[0]; if (!p || p.status !== 'Planned') return;
   var snap = JSON.stringify(S);
   p.status = 'Done';
-  S.stock.forEach(function(t){ var u = t.type === 'ACM' ? p.kgACM : p.kgSK; t.onHand -= u; t.usedKg += u; });
+  S.stock.forEach(function(t){ var u = t.type === 'ACM' ? p.kgACM : t.type === 'Saputo' ? p.kgSA : p.kgKI; t.onHand -= u; t.usedKg += u; });
   busy = true; bar(true); setLive('spin', 'Saving…'); render(); toast('Marked done');
   api('api_setStatus', id, 'Done', me).then(function(r){
     busy = false; bar(false); setState(r); if (r.warn) toast(r.warn, true);
@@ -473,12 +473,12 @@ function doInstall(){
 function projection(){
   var on = {}; S.stock.forEach(function(t){ on[t.type] = t.onHand; });
   var plan = S.plan.filter(function(p){ return p.status === 'Planned'; }).sort(byDate);
-  var out = { short: {}, need7: { 'ACM': 0, 'Saputo/Kisaan': 0 }, overdue: 0, dayShort: {}, covered: 0, upcoming: 0, firstShort: null };
+  var out = { short: {}, need7: { 'ACM': 0, 'Saputo': 0, 'Kisaan': 0 }, overdue: 0, dayShort: {}, covered: 0, upcoming: 0, firstShort: null };
   var end = addDays(S.today, 6), stop = false;
   plan.forEach(function(p){
     if (p.date < S.today) out.overdue++;
-    on['ACM'] -= p.kgACM; on['Saputo/Kisaan'] -= p.kgSK;
-    if (p.date >= S.today && p.date <= end) { out.need7['ACM'] += p.kgACM; out.need7['Saputo/Kisaan'] += p.kgSK; }
+    on['ACM'] -= p.kgACM; on['Saputo'] -= p.kgSA; on['Kisaan'] -= p.kgKI;
+    if (p.date >= S.today && p.date <= end) { out.need7['ACM'] += p.kgACM; out.need7['Saputo'] += p.kgSA; out.need7['Kisaan'] += p.kgKI; }
     var bad = [];
     S.types.forEach(function(t){ if (on[t] < 0) { bad.push(t); if (!out.short[t]) out.short[t] = { date: p.date, kg: 0 }; out.short[t].kg = -on[t]; } });
     if (bad.length) { out.dayShort[p.date] = bad; if (!out.firstShort) out.firstShort = p.date; }
@@ -488,8 +488,10 @@ function projection(){
 }
 function planLine(p){
   if (p.status === 'No ghee') return 'No Ghee';
-  var s = p.sources.toLowerCase(), both = s.indexOf('acm') >= 0 && /saputo|kisaan/.test(s);
-  return p.batches + ' batch' + (p.batches > 1 ? 'es' : '') + ' · ' + esc(p.sources) + (both ? ' · ' + p.skPct + '/' + p.acmPct : '');
+  var s = p.sources.toLowerCase(), pairs = [['Saputo', p.skPct], ['Kisaan', p.kiPct], ['ACM', p.acmPct]];
+  var sel = pairs.filter(function(x){ return s.indexOf(x[0].toLowerCase()) >= 0; });
+  var split = sel.length > 1 ? ' · ' + sel.map(function(x){ return x[0] + ' ' + (x[1] === '' || x[1] == null ? 0 : x[1]) + '%'; }).join(' · ') : '';
+  return p.batches + ' batch' + (p.batches > 1 ? 'es' : '') + ' · ' + esc(p.sources) + split;
 }
 function stLabel(s){ return s === 'No ghee' ? 'No Ghee' : s; }
 function stTag(s){ return s === 'Done' ? '<span class="tag ok">' + ic('check', 12) + 'Done</span>' : s === 'No ghee' ? '<span class="tag gray">No Ghee</span>' : '<span class="tag">Planned</span>'; }
@@ -751,14 +753,16 @@ function openPlan(id, date){
   if (!p) {
     var last = S.plan.filter(function(x){ return x.status !== 'No ghee'; }).slice(-1)[0] || {};
     var maxD = S.plan.length ? S.plan[S.plan.length - 1].date : addDays(S.today, -1);
-    p = { date: date || addDays(maxD > S.today ? maxD : addDays(S.today, -1), 1), status: 'Planned', batches: 1, sources: 'Saputo, ACM', skPct: 70, operator: last.operator || '', assistant: last.assistant || '', fillOf: '', fillSize: '', notes: '', _new: true };
+    p = { date: date || addDays(maxD > S.today ? maxD : addDays(S.today, -1), 1), status: 'Planned', batches: 1, sources: 'Saputo, ACM', skPct: 70, kiPct: 0, acmPct: 30, operator: last.operator || '', assistant: last.assistant || '', fillOf: '', fillSize: '', notes: '', _new: true };
   }
   var auto = !!p._new || !p.fillOf, src = p.sources.toLowerCase();
   var body = '<label class="f" style="margin-top:6px">Date</label>' + dateField('p_d', p.date, { title: 'Production Date', marks: planMarks, long: true }) + '<div class="hint bad hide" id="p_dup"></div>' +
     '<label class="f">Status</label><div class="seg">' + ['Planned', 'Done', 'No ghee'].map(function(s){ return '<label><input type="radio" name="p_s" value="' + s + '"' + (p.status === s ? ' checked' : '') + '><span>' + stLabel(s) + '</span></label>'; }).join('') + '</div>' +
     '<div id="p_run"><label class="f">Batches</label><div class="stepper"><button type="button" id="p_m" aria-label="Fewer">' + ic('minus', 20) + '</button><input type="number" id="p_b" inputmode="numeric" value="' + p.batches + '"><button type="button" id="p_p" aria-label="More">' + ic('plus', 20) + '</button></div>' +
     '<label class="f">Butter Sources</label><div class="pills">' + ['Saputo', 'ACM', 'Kisaan'].map(function(s){ return '<label class="pill"><input type="checkbox" class="p_src" value="' + s + '"' + (src.indexOf(s.toLowerCase()) >= 0 ? ' checked' : '') + '><span>' + s + '</span></label>'; }).join('') + '</div>' +
-    '<div id="p_bl"><label class="f">Blend Ratio</label><input type="range" id="p_sk" min="0" max="100" step="5" value="' + (p.skPct === '' ? 70 : p.skPct) + '"><div class="hint" id="p_blt"></div></div><div class="hint" id="p_use"></div>' +
+    '<div id="p_bl"><label class="f">Split Of Butter (Must Total 100%)</label><div class="two">' +
+      [['p_sa', 'Saputo %', p.skPct], ['p_ki', 'Kisaan %', p.kiPct], ['p_ac', 'ACM %', p.acmPct]].map(function(x){ return '<div><label class="f">' + x[1] + '</label><input type="number" id="' + x[0] + '" inputmode="numeric" min="0" max="100" step="1" value="' + (x[2] === '' || x[2] == null ? 0 : x[2]) + '"></div>'; }).join('') +
+      '</div><div class="hint" id="p_blt"></div></div><div class="hint" id="p_use"></div>' +
     '<div class="two"><div><label class="f">Operator</label><select id="p_op">' + selOpts(st.staff, p.operator, '—') + '</select></div><div><label class="f">Assistant</label><select id="p_as">' + selOpts(st.staff, p.assistant, '—') + '</select></div></div></div>' +
     '<label class="f">Fill: Batch Made On</label>' + dateField('p_fo', p.fillOf || (p._new ? suggestFill(p.date) : ''), { title: 'Which Batch Is Being Filled?', long: true, empty: 'None', clear: true, marks: planMarks, start: function(){ return val('p_d'); }, onUser: function(){ auto = false; } }) +
     '<label class="f">Fill Size</label>' + radios('p_fs', [{ v: '', l: 'None' }].concat(st.fillSizes.map(function(x){ return { v: x, l: x }; })), p.fillSize) +
@@ -769,11 +773,15 @@ function openPlan(id, date){
   var sources = function(){ return Array.prototype.map.call(document.querySelectorAll('.p_src:checked'), function(x){ return x.value; }); };
   var upd = function(){
     var status = rv('p_s'); $('#p_run').classList.toggle('hide', status === 'No ghee');
-    var s = sources(), both = s.indexOf('ACM') >= 0 && s.some(function(x){ return x !== 'ACM'; });
+    var s = sources(), both = s.length > 1, ids = { Saputo: 'p_sa', Kisaan: 'p_ki', ACM: 'p_ac' }, pc = {}, total = 0;
     $('#p_bl').classList.toggle('hide', !both);
-    var sk = +val('p_sk') || 0; $('#p_blt').textContent = 'Saputo/Kisaan ' + sk + '%  ·  ACM ' + (100 - sk) + '%';
-    var b = parseInt(val('p_b')) || 0, tot = b * S.settings.batchKg, acm = both ? tot * (100 - sk) / 100 : (s.indexOf('ACM') >= 0 ? tot : 0);
-    $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (ACM ' + kg(acm) + ' · Saputo/Kisaan ' + kg(tot - acm) + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
+    Object.keys(ids).forEach(function(k){ $('#' + ids[k]).disabled = s.indexOf(k) < 0; });
+    s.forEach(function(k){ pc[k] = +val(ids[k]) || 0; total += pc[k]; });
+    var ok = !both || Math.round(total) === 100;
+    $('#p_blt').textContent = both ? 'Total ' + total + '%' + (ok ? '  ·  OK' : '  ·  Must Be 100%') : '';
+    $('#p_blt').classList.toggle('bad', both && !ok);
+    var b = parseInt(val('p_b')) || 0, tot = b * S.settings.batchKg;
+    $('#p_use').textContent = s.length && b ? 'Uses about ' + kg(tot) + ' kg butter (' + s.map(function(k){ return k + ' ' + kg(tot * (both ? pc[k] : 100) / 100) + ' kg'; }).join(' · ') + ') at ' + kg(S.settings.batchKg) + ' kg per batch.' : '';
     var dup = null, dh = $('#p_dup');
     dh.classList.toggle('hide', !dup); dh.innerHTML = dup ? 'This date already has an entry. <button class="link" id="p_open" type="button">Open It Instead</button>' : '';
     if (dup) $('#p_open').onclick = function(){ openPlan(dup.id); };
@@ -782,7 +790,7 @@ function openPlan(id, date){
   $('#p_m').onclick = function(){ $('#p_b').value = Math.max(1, (parseInt(val('p_b')) || 1) - 1); upd(); };
   $('#p_p').onclick = function(){ $('#p_b').value = (parseInt(val('p_b')) || 0) + 1; upd(); };
   onAll('#sheet input, #sheet select', upd); upd();
-  var collect = function(so){ return { id: id || '', date: val('p_d'), status: so || rv('p_s'), product: 'Aussie', batches: val('p_b'), sources: sources().join(', '), skPct: val('p_sk'), operator: val('p_op'), assistant: val('p_as'), fillOf: val('p_fo'), fillSize: rv('p_fs'), notes: val('p_nt') }; };
+  var collect = function(so){ return { id: id || '', date: val('p_d'), status: so || rv('p_s'), product: 'Aussie', batches: val('p_b'), sources: sources().join(', '), skPct: val('p_sa'), kiPct: val('p_ki'), acmPct: val('p_ac'), operator: val('p_op'), assistant: val('p_as'), fillOf: val('p_fo'), fillSize: rv('p_fs'), notes: val('p_nt') }; };
   $('#p_save').onclick = function(){ act('api_savePlan', [collect()], this); };
   if ($('#p_done')) $('#p_done').onclick = function(){ act('api_savePlan', [collect('Done')], this); };
   if (id) $('#p_del').onclick = function(){ if (confirm('Delete this day? Any stock deducted for it will be returned.')) act('api_deletePlan', [id], this); };
